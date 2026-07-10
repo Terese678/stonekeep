@@ -5,7 +5,7 @@
 const REGISTRY_ADDRESS = "0xd82378cD929036AfC32db97DFe86b9fCF2e46258";
 
 // The exact fingerprint we got when we registered our file earlier.
-const WORK_HASH = "0xc54c09666efda15b0489e22c58c55c1767af67ae076eee6a7e873ee678c2692d";
+const WORK_HASH = "0x055facc663f545b6ab2b92f76f08bc552313a7181e751b3b1b3e38d70dff76cc";
 
 async function main() {
   const registry = await ethers.getContractAt("StonekeepRegistry", REGISTRY_ADDRESS);

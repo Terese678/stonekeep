@@ -5,7 +5,7 @@
 const RIGHTS_ADDRESS = "0xb24DaB8a0E6Ad8Ac9a76746C6fF37fAFa4671Aaa";
 
 // The same fingerprint we registered earlier.
-const WORK_HASH = "0xc54c09666efda15b0489e22c58c55c1767af67ae076eee6a7e873ee678c2692d";
+const WORK_HASH = "0x055facc663f545b6ab2b92f76f08bc552313a7181e751b3b1b3e38d70dff76cc";
 
 // Paste in a second wallet address here - the new "owner" we're
 // transferring rights to.
