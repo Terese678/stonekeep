@@ -1,7 +1,7 @@
 // Main app shell.
 // Right now this is a dashboard layout: a header, and a grid of panels.
 // The Wallet panel is fully live (connects via wagmi). Register and Verify
-// are placeholders - dimmed and non-interactive - until their own feature
+// are placeholders, dimmed and non-interactive - until their own feature
 // branches build out the real functionality.
 //
 // The bg-pattern div is a fixed, full-screen layer sitting behind everything
@@ -13,6 +13,7 @@
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import RegisterWork from './components/RegisterWork'
 import VerifyWork from './components/VerifyWork'
+import TransferRights from './components/TransferRights'
 
 function App() {
   // useAccount tells us if a wallet is connected, and gives us the address.
@@ -95,6 +96,10 @@ function App() {
           <RegisterWork />
 
           <VerifyWork />
+
+          <div className="md:col-span-3">
+            <TransferRights />
+          </div>
 
         </main>
 
