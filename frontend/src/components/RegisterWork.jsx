@@ -10,6 +10,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagm
 import { keccak256, toBytes } from 'viem'
 import { registryAbi } from '../config/abis'
 import { REGISTRY_ADDRESS } from '../config/addresses'
+import { uploadToPinata } from '../utils/pinata'
 
 function RegisterWork() {
   const { isConnected } = useAccount()
@@ -40,19 +41,17 @@ function RegisterWork() {
     setWorkHash(hash)
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!workHash || !title) return
 
+    const ipfsHash = await uploadToPinata(file) // upload first, get real CID
+
     writeContract({
-      address: REGISTRY_ADDRESS,
-      abi: registryAbi,
-      functionName: 'registerWork',
-      args: [
-        workHash,
-        '', // TODO: wire up real IPFS upload, for now this is just an empty placeholder
-        title,
-      ],
+       address: REGISTRY_ADDRESS,
+       abi: registryAbi,
+       functionName: 'registerWork',
+       args: [workHash, ipfsHash, title],
     })
   }
 
