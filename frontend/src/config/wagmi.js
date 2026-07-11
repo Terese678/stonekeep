@@ -6,8 +6,6 @@ import { createConfig, http } from 'wagmi'
 import { defineChain } from 'viem'
 import { injected } from 'wagmi/connectors'
 
-// BOT Chain Testnet, used while we're building and testing.
-// Chain ID and RPC confirmed from BOT Chain's dev docs.
 export const botChainTestnet = defineChain({
   id: 968,
   name: 'BOT Chain Testnet',
@@ -20,13 +18,12 @@ export const botChainTestnet = defineChain({
     default: { http: ['https://rpc.bohr.life'] },
   },
   blockExplorers: {
-    default: { name: 'BOT Scan', url: 'https://scan.botchain.ai' },
+    default: { name: 'BOT Scan Testnet', url: 'https://scan.bohr.life' }, // fixed - was pointing to mainnet explorer
   },
   testnet: true,
 })
 
 // BOT Chain Mainnet; we'll switch to this once testnet is validated
-// and we're ready to deploy for real (around July 19-21 per our plan).
 export const botChainMainnet = defineChain({
   id: 677,
   name: 'BOT Chain',
