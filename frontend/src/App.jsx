@@ -11,6 +11,7 @@
 // behind it.
 
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import RegisterWork from './components/RegisterWork'
 
 function App() {
   // useAccount tells us if a wallet is connected, and gives us the address.
@@ -90,14 +91,7 @@ function App() {
             )}
           </div>
 
-          {/* Register work panel - placeholder until its feature branch is built.
-              Dimmed with opacity-60 and no interactive elements yet. */}
-          <div className="bg-panel border border-border-warm rounded-xl p-6 opacity-60">
-            <h2 className="font-display text-xs uppercase tracking-[0.2em] text-gold mb-2">
-              Register work
-            </h2>
-            <p className="text-sm text-gray-500 font-body">Coming next</p>
-          </div>
+          <RegisterWork />
 
           {/* Verify a work panel - same placeholder treatment as above */}
           <div className="bg-panel border border-border-warm rounded-xl p-6 opacity-60">
