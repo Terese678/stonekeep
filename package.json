@@ -1,13 +1,13 @@
 {
   "name": "stonekeep",
   "version": "1.0.0",
-  "description": "",
+  "description": "On-chain proof of authorship for creators, built on BOT Chain.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["blockchain", "bot-chain", "proof-of-authorship", "ipfs", "solidity"],
+  "author": "Timothy Chimbiv",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
