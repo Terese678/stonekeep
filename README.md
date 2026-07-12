@@ -34,6 +34,20 @@ A working dashboard (React + Vite + wagmi) with four live features:
 - StonekeepRegistry: `0xd82378cD929036AfC32db97DFe86b9fCF2e46258`
 - RightsAssignment: `0xb24DaB8a0E6Ad8Ac9a76746C6fF37fAFa4671Aaa`
 
+## Known limitations
+
+- **Front-running**: like any on-chain proof-of-first system, a pending 
+  `registerWork` transaction is visible in the mempool before it's mined. 
+  A malicious actor could theoretically see the hash and race to register 
+  it first with higher gas. This is a known tradeoff of the current design, 
+  not specific to Stonekeep.
+
+- **Zero-address transfer**: `transferRights` currently doesn't block 
+  transferring ownership to the zero address, which would lock a work 
+  permanently. I have a one-line fix ready, but redeploying now would mean 
+  new contract addresses and re-registering test data, so it's deferred 
+  to a follow-up update.
+
 ## Scripts
 
 - `scripts/deploy.js` — deploys both contracts
