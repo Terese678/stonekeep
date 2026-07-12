@@ -1,8 +1,9 @@
-// Transfer Rights panel.
-// it lets the current rights holder of a registered work hand ownership
-// over to a new wallet address. Upload the file to re-derive its hash
-// (same pattern as Register/Verify Work), see who currently holds the
-// rights, and if that's you, transfer to a new address.
+// This is the "Transfer Rights" panel.
+// Ownership of a registered work isn't always permanent, a writer might
+// sell a script, for example. This panel lets whoever currently owns a
+// work hand it off to someone else's wallet. Upload the file to find out
+// who owns it right now, and if that's you, you get a form to transfer
+// it to a new address.
 
 import { useState } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
@@ -74,18 +75,18 @@ function TransferRights() {
   // If no wallet is connected, don't show any of the form, just a prompt.
   if (!isConnected) {
     return (
-      <div className="bg-panel border border-border-warm rounded-xl p-6">
-        <h2 className="font-display text-xs uppercase tracking-[0.2em] text-gold mb-2">
+      <div className="bg-panel border border-border-warm rounded-xl p-7 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
+        <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold mb-2">
           Transfer rights
         </h2>
-        <p className="text-sm text-gray-500 font-body">Connect your wallet first</p>
+        <p className="text-base text-gray-400 font-body">Connect your wallet first</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-panel border border-border-warm rounded-xl p-6 flex flex-col gap-4">
-      <h2 className="font-display text-xs uppercase tracking-[0.2em] text-gold">
+    <div className="bg-panel border border-border-warm rounded-xl p-7 flex flex-col gap-4 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
+      <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold">
         Transfer rights
       </h2>
 
@@ -93,12 +94,12 @@ function TransferRights() {
       <input
         type="file"
         onChange={handleFileChange}
-        className="text-sm text-gray-400 font-body file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border file:border-gold file:bg-transparent file:text-gold file:text-xs file:uppercase file:tracking-wide"
+        className="text-base text-gray-300 font-body file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border file:border-gold file:bg-transparent file:text-gold file:text-sm file:uppercase file:tracking-wide"
       />
 
       {/* Once we know who holds the rights, show it, and flag if it's us */}
       {holder && (
-        <p className="text-xs text-bronze font-body break-all">
+        <p className="text-sm text-bronze font-body break-all">
           Current holder: {holder.slice(0, 6)}...{holder.slice(-4)}
           {isCurrentHolder && ' (you)'}
         </p>
@@ -106,7 +107,7 @@ function TransferRights() {
 
       {/* If someone else holds the rights, there's nothing more to do here */}
       {holder && !isCurrentHolder && (
-        <p className="text-sm text-red-400 font-body">
+        <p className="text-base text-red-400 font-body">
           You aren't the current rights holder for this work.
         </p>
       )}
@@ -121,13 +122,13 @@ function TransferRights() {
             placeholder="New holder address (0x...)"
             value={newHolder}
             onChange={(e) => setNewHolder(e.target.value)}
-            className="bg-obsidian border border-border-warm rounded-lg px-3 py-2 text-sm font-body text-white placeholder:text-gray-600"
+            className="bg-obsidian border border-border-warm rounded-lg px-3 py-2.5 text-base font-body text-white placeholder:text-gray-500"
           />
 
           <button
             type="submit"
             disabled={!newHolder || isPending || isConfirming}
-            className="px-4 py-2.5 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-40"
+            className="px-4 py-3 border border-gold text-gold rounded-lg font-display text-base tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-40"
           >
             {isPending
               ? 'Confirm in wallet...'
@@ -137,13 +138,13 @@ function TransferRights() {
           </button>
 
           {writeError && (
-            <p className="text-xs text-red-400 font-body">
+            <p className="text-sm text-red-400 font-body">
               {writeError.shortMessage || writeError.message}
             </p>
           )}
 
           {isConfirmed && (
-            <p className="text-xs text-gold-bright font-body">
+            <p className="text-sm text-gold-bright font-body">
               Rights transferred successfully.
             </p>
           )}

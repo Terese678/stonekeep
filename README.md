@@ -4,21 +4,30 @@ On-chain proof of authorship for creators, built on BOT Chain.
 
 ## What this is
 
-Stonekeep lets a creator register their work (a script, a file, anything) permanently on-chain. Once registered, that record can never be changed or deleted; it's proof of who made something, and exactly when.
+Stonekeep lets a creator register their work (a script, a file, anything) permanently on-chain. Once it's registered, that record can never be changed or deleted; it's proof of who made something, and exactly when.
 
-This is the first milestone: proof of authorship and ownership transfer. Royalty rails and IPFS storage integration are planned next.
+This milestone covers proof of authorship, IPFS storage, and ownership transfer; all working end-to-end with a live frontend.
 
 ## How it works
 
-1. A creator hashes their work (a fingerprint of its exact content) and registers it on-chain, along with a title and a link to where the file is actually stored (currently a placeholder, IPFS integration coming next).
-2. Anyone can look up that hash later and see who registered it, and when.
-3. The registered owner can transfer rights to someone else if needed.
+1. A creator uploads a file. It's hashed in the browser (a fingerprint of its exact content) and uploaded to IPFS via Pinata. The hash, IPFS link, and a title get registered on-chain.
+2. Anyone can upload that same file later and instantly see who registered it, when, and view the file itself via its IPFS link.
+3. The registered owner can transfer rights to someone else's wallet if ownership changes hands.
+
+## Frontend
+
+A working dashboard (React + Vite + wagmi) with four live features:
+
+- **Wallet** — connect/disconnect via MetaMask
+- **Register Work** — hash a file, upload to IPFS, write it on-chain
+- **Verify a Work** — re-check a file against the chain, no wallet needed
+- **Transfer Rights** — hand off ownership to a new wallet address
 
 ## Contracts
 
-- **StonekeepRegistry.sol** — the core registry. Handles registering and looking up proof of authorship. Once something is registered here, it's permanent.
-- **RightsAssignment.sol** — handles transferring ownership of a registered work. Kept separate from the registry on purpose, since ownership can change hands while the original proof never should.
-- **interfaces/IStonekeepRegistry.sol** — a blueprint the two contracts above use to talk to each other without depending on internal details.
+- `StonekeepRegistry.sol` — the core registry. Handles registering and looking up proof of authorship. Once something is registered here, it's permanent.
+- `RightsAssignment.sol` — handles transferring ownership of a registered work. Kept separate from the registry on purpose, since ownership can change hands while the original proof never should.
+- `interfaces/IStonekeepRegistry.sol` — a blueprint the two contracts above use to talk to each other without depending on internal details.
 
 ## Deployed on BOT Chain Testnet
 
@@ -36,8 +45,20 @@ This is the first milestone: proof of authorship and ownership transfer. Royalty
 
 Install dependencies, compile the contracts, then deploy:
 
-    npm install
-    npx hardhat compile
-    npx hardhat run scripts/deploy.js --network botchainTestnet
+\`\`\`
+npm install
+npx hardhat compile
+npx hardhat run scripts/deploy.js --network botchainTestnet
+\`\`\`
 
 You'll need a `.env` file with your own `PRIVATE_KEY` and test BOT tokens from the BOT Chain testnet faucet.
+
+To run the frontend:
+
+\`\`\`
+cd frontend
+npm install
+npm run dev
+\`\`\`
+
+You'll need a `frontend/.env` file with your own `VITE_PINATA_JWT` for IPFS uploads.

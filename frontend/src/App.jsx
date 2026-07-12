@@ -1,14 +1,12 @@
-// Main app shell.
-// Right now this is a dashboard layout: a header, and a grid of panels.
-// The Wallet panel is fully live (connects via wagmi). Register and Verify
-// are placeholders, dimmed and non-interactive - until their own feature
-// branches build out the real functionality.
+// App.jsx; the main dashboard
+// Stonekeep lets creators prove they made something, by hashing a file
+// and storing that hash on-chain. This file lays out the page: a header,
+// then a grid with one panel per feature, wallet, Register Work,
+// Verify a Work, and Transfer Rights. Each panel is its own component,
+// imported below, so this file mainly just handles layout and wallet state.
 //
-// The bg-pattern div is a fixed, full-screen layer sitting behind everything
-// (z-0, set in index.css). It's purely decorative - the animated gold
-// line/gradient pattern. Everything else lives inside a relative z-10
-// wrapper so it renders on top of that pattern instead of being hidden
-// behind it.
+// The bg-pattern div is just a decorative animated background sitting
+// behind everything. Everything else sits above it so it's actually visible.
 
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import RegisterWork from './components/RegisterWork'
@@ -29,7 +27,7 @@ function App() {
   return (
     <div className="min-h-screen text-white relative">
 
-      {/* Animated background layer - fixed behind everything, z-0.
+      {/* Animated background layer, fixed behind everything, z-0.
           Purely visual, defined in index.css (.bg-pattern + @keyframes drift) */}
       <div className="bg-pattern" />
 
@@ -37,17 +35,35 @@ function App() {
       <div className="relative z-10">
 
         {/* Header: logo mark, app name, and a short tagline on the right */}
-        <header className="border-b border-border-warm px-10 py-6 flex items-center justify-between">
+        <header className="border-b border-border-warm px-10 py-7 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Simple circular logo mark using the first letter, styled like a seal/emblem */}
-            <div className="w-9 h-9 rounded-full border border-gold flex items-center justify-center text-gold-bright font-display font-bold">
-              S
+            {/* Stone-shaped logo mark (faceted gem outline) instead of a plain letter */}
+            <div className="w-10 h-10 rounded-full border border-gold flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 2L20 8L17 20H7L4 8L12 2Z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                  className="text-gold-bright"
+                />
+                <path
+                  d="M12 2L12 8M4 8L12 8M20 8L12 8M7 20L12 8M17 20L12 8"
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  strokeLinejoin="round"
+                  className="text-gold-bright opacity-60"
+                />
+              </svg>
             </div>
-            <h1 className="text-2xl font-display font-bold tracking-wide text-gold-bright">
+            <h1 className="text-3xl font-display font-bold tracking-wide text-gold-bright">
               STONEKEEP
             </h1>
           </div>
-          <p className="text-[11px] text-bronze uppercase tracking-[0.2em]">
+          {/* Tagline wrapped in a frosted "glass" pill so it stands out
+              against the moving background instead of blending in */}
+          <p className="text-xs text-bronze uppercase tracking-[0.2em] px-4 py-2 rounded-full bg-white/5 backdrop-blur-sm border border-border-warm">
             Proof of authorship · Built on BOT Chain
           </p>
         </header>
@@ -55,37 +71,35 @@ function App() {
         {/* Dashboard grid: 3 panels on desktop, stacked on mobile */}
         <main className="p-10 grid grid-cols-1 md:grid-cols-3 gap-6">
 
-          {/* Wallet panel - the only fully functional panel right now.
-              Has a subtle gold glow (via box-shadow) to signal it's the active/live one. */}
-          <div className="bg-panel border border-border-warm rounded-xl p-6 flex flex-col gap-4 shadow-[0_0_30px_-10px_rgba(201,162,75,0.15)]">
-            <h2 className="font-display text-xs uppercase tracking-[0.2em] text-gold">
+          {/* Wallet panel: the only fully functional panel at first, now
+              sharing the same gold glow as every other panel since all
+              four features are live and equally important. */}
+          <div className="bg-panel border border-border-warm rounded-xl p-7 flex flex-col gap-4 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
+            <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold">
               Wallet
             </h2>
 
             {isConnected ? (
               // If a wallet is connected: show a shortened address + disconnect button
               <div className="flex flex-col gap-3">
-                <p className="text-sm text-gray-400 font-body">
+                <p className="text-base text-gray-300 font-body">
                   Connected: <span className="text-gold-bright">{address.slice(0, 6)}...{address.slice(-4)}</span>
                 </p>
                 <button
                   onClick={() => disconnect()}
-                  className="px-4 py-2.5 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all"
+                  className="px-4 py-3 border border-gold text-gold rounded-lg font-display text-base tracking-wide hover:bg-gold hover:text-obsidian transition-all"
                 >
                   Disconnect
                 </button>
               </div>
             ) : (
               // If not connected: show one button per available connector
-              // (usually just one - "Injected", which covers MetaMask etc.)
+              // (usually just one, "Injected", which covers MetaMask etc.)
               connectors.map((connector) => (
                 <button
                   key={connector.id}
-                  onClick={() => {
-                    console.log('Button clicked, connector:', connector)
-                    connect({ connector })
-                  }}
-                  className="px-4 py-2.5 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all"
+                  onClick={() => connect({ connector })}
+                  className="px-4 py-3 border border-gold text-gold rounded-lg font-display text-base tracking-wide hover:bg-gold hover:text-obsidian transition-all"
                 >
                   Connect {connector.name}
                 </button>
@@ -93,10 +107,15 @@ function App() {
             )}
           </div>
 
+          {/* Register Work, hashes a file client-side, uploads to Pinata,
+              writes hash + IPFS CID + title on-chain */}
           <RegisterWork />
 
+          {/* Verify a Work, re-hashes a file and looks it up on-chain */}
           <VerifyWork />
 
+          {/* Transfer Rights, its own full-width row below the main three,
+              since it has more content (holder lookup + conditional form) */}
           <div className="md:col-span-3">
             <TransferRights />
           </div>
