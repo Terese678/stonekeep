@@ -1,5 +1,7 @@
-// This script pushes our two contracts onto BOTChain's testnet.
+// This script deploys our two contracts (StonekeepRegistry and RightsAssignment)
+// to whichever BOTChain network you point it at.
 // Run it with: npx hardhat run scripts/deploy.js --network botchainTestnet
+//          or: npx hardhat run scripts/deploy.js --network botchainMainnet
 
 async function main() {
   const [signer] = await ethers.getSigners();

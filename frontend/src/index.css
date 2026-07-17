@@ -35,3 +35,19 @@ body {
   from { background-position: 0 0, 0 0, 0 0, 0 0; }
   to { background-position: 40px 40px, -40px 40px, 20px 0, -20px 0; }
 }
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+input[type="file"] {
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button {
+  cursor: pointer;
+}

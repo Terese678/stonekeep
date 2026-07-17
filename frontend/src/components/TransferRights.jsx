@@ -9,12 +9,13 @@ import { useState } from 'react'
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { keccak256 } from 'viem'
 import { rightsAbi } from '../config/rightsAbi'
-import { RIGHTS_ADDRESS } from '../config/addresses'
+import { useContractAddresses } from '../config/getAddresses'
 
 function TransferRights() {
   // address = our own connected wallet address (used to check if we're
   // the current rights holder). isConnected = whether a wallet is hooked up at all.
   const { address, isConnected } = useAccount()
+  const addresses = useContractAddresses()
 
   // workHash = the keccak256 hash of whatever file gets uploaded below.
   // newHolder = the wallet address typed into the "transfer to" input.
@@ -36,11 +37,11 @@ function TransferRights() {
   // holds the rights to this work?" Only runs once a file has been
   // uploaded (enabled: !!workHash).
   const { data: holder } = useReadContract({
-    address: RIGHTS_ADDRESS,
+    address: addresses?.RIGHTS_ADDRESS,
     abi: rightsAbi,
     functionName: 'getRightsHolder',
     args: [workHash],
-    query: { enabled: !!workHash },
+    query: { enabled: !!workHash && !!addresses },
   })
 
   // Compares the holder address returned by the contract to our own
@@ -62,10 +63,10 @@ function TransferRights() {
   // transferRights(workHash, newHolder) call to the contract.
   function handleTransfer(e) {
     e.preventDefault()
-    if (!workHash || !newHolder) return
+    if (!workHash || !newHolder || !addresses) return
 
     writeContract({
-      address: RIGHTS_ADDRESS,
+      address: addresses.RIGHTS_ADDRESS,
       abi: rightsAbi,
       functionName: 'transferRights',
       args: [workHash, newHolder],
@@ -80,6 +81,22 @@ function TransferRights() {
           Transfer rights
         </h2>
         <p className="text-base text-gray-400 font-body">Connect your wallet first</p>
+      </div>
+    )
+  }
+
+  // If the wallet is connected but on some other network entirely (not our
+  // testnet or mainnet), we don't know which addresses to use, so don't
+  // show the form.
+  if (!addresses) {
+    return (
+      <div className="bg-panel border border-border-warm rounded-xl p-7 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
+        <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold mb-2">
+          Transfer rights
+        </h2>
+        <p className="text-base text-gray-400 font-body">
+          Please switch your wallet to BOT Chain (testnet or mainnet)
+        </p>
       </div>
     )
   }

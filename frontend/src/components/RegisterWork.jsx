@@ -11,11 +11,12 @@ import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { keccak256 } from 'viem'
 import { registryAbi } from '../config/abis'
-import { REGISTRY_ADDRESS } from '../config/addresses'
+import { useContractAddresses } from '../config/getAddresses'
 import { uploadToPinata } from '../utils/pinata'
 
 function RegisterWork() {
   const { isConnected } = useAccount()
+  const addresses = useContractAddresses()
 
   const [title, setTitle] = useState('')
   const [file, setFile] = useState(null)
@@ -52,7 +53,7 @@ function RegisterWork() {
     const ipfsHash = await uploadToPinata(file) // upload first, get real CID
 
     writeContract({
-      address: REGISTRY_ADDRESS,
+      address: addresses.REGISTRY_ADDRESS,
       abi: registryAbi,
       functionName: 'registerWork',
       args: [workHash, ipfsHash, title],
@@ -67,6 +68,22 @@ function RegisterWork() {
           Register work
         </h2>
         <p className="text-base text-gray-400 font-body">Connect your wallet first</p>
+      </div>
+    )
+  }
+
+  // If the wallet is connected but on some other network entirely (not our
+  // testnet or mainnet), we don't know which addresses to use, so don't
+  // show the form.
+  if (!addresses) {
+    return (
+      <div className="bg-panel border border-border-warm rounded-xl p-7 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
+        <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold mb-2">
+          Register work
+        </h2>
+        <p className="text-base text-gray-400 font-body">
+          Please switch your wallet to BOT Chain (testnet or mainnet)
+        </p>
       </div>
     )
   }

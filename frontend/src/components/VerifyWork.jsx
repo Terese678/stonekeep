@@ -9,9 +9,10 @@ import { useState } from 'react'
 import { useReadContract } from 'wagmi'
 import { keccak256 } from 'viem'
 import { registryAbi } from '../config/abis'
-import { REGISTRY_ADDRESS } from '../config/addresses'
+import { useContractAddresses } from '../config/getAddresses'
 
 function VerifyWork() {
+  const addresses = useContractAddresses()
   const [workHash, setWorkHash] = useState(null)
 
   // Re-derives the hash from the file's raw bytes, same logic as
@@ -25,13 +26,13 @@ function VerifyWork() {
   }
 
   // Read-only call to the contract. Only fires once workHash is set
-  // (enabled: !!workHash), so it doesn't run on every render.
+  // AND we know which network's addresses to use (enabled: !!workHash && !!addresses).
   const { data, isLoading, error } = useReadContract({
-    address: REGISTRY_ADDRESS,
+    address: addresses?.REGISTRY_ADDRESS,
     abi: registryAbi,
     functionName: 'getWork',
     args: [workHash],
-    query: { enabled: !!workHash },
+    query: { enabled: !!workHash && !!addresses },
   })
 
   // getWork returns [author, ipfsHash, title, timestamp].
@@ -47,6 +48,12 @@ function VerifyWork() {
       <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold">
         Verify a work
       </h2>
+
+      {!addresses && (
+        <p className="text-base text-gray-400 font-body">
+          Please switch your wallet to BOT Chain (testnet or mainnet)
+        </p>
+      )}
 
       <input
         type="file"
