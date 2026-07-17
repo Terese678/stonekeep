@@ -6,7 +6,7 @@ On-chain proof of authorship for creators, built on BOT Chain.
 
 Stonekeep lets a creator register their work (a script, a file, anything) permanently on-chain. Once it's registered, that record can never be changed or deleted; it's proof of who made something, and exactly when.
 
-This milestone covers proof of authorship, IPFS storage, and ownership transfer; all working end-to-end with a live frontend.
+This milestone covers proof of authorship, IPFS storage, and ownership transfer; all working end-to-end with a live frontend, deployed on both testnet and mainnet.
 
 ## How it works
 
@@ -23,6 +23,8 @@ A working dashboard (React + Vite + wagmi) with four live features:
 - **Verify a Work** — re-check a file against the chain, no wallet needed
 - **Transfer Rights** — hand off ownership to a new wallet address
 
+The frontend automatically detects which network your wallet is connected to (testnet or mainnet) and uses the correct contract addresses.
+
 ## Contracts
 
 - `StonekeepRegistry.sol` — the core registry. Handles registering and looking up proof of authorship. Once something is registered here, it's permanent.
@@ -33,6 +35,11 @@ A working dashboard (React + Vite + wagmi) with four live features:
 
 - StonekeepRegistry: `0xd82378cD929036AfC32db97DFe86b9fCF2e46258`
 - RightsAssignment: `0xb24DaB8a0E6Ad8Ac9a76746C6fF37fAFa4671Aaa`
+
+## Deployed on BOT Chain Mainnet
+
+- StonekeepRegistry: `0x3035DD6E7CDE03621B4621E70E65B87217346620`
+- RightsAssignment: `0x527A9b2a66Ed11796d89E1575A57C7c358dCd827`
 
 ## Known limitations
 
@@ -63,6 +70,8 @@ Install dependencies, compile the contracts, then deploy:
 npm install
 npx hardhat compile
 npx hardhat run scripts/deploy.js --network botchainTestnet
+# or
+npx hardhat run scripts/deploy.js --network botchainMainnet
 \`\`\`
 
 You'll need a `.env` file with your own `PRIVATE_KEY` and test BOT tokens from the BOT Chain testnet faucet.
