@@ -18,6 +18,16 @@ contract RightsAssignment {
     // author (from the registry) is treated as the current owner.
     mapping(bytes32 => address) private currentHolder;
 
+    // Broadcast every time rights actually change hands. Lets an indexer
+    // (or any platform plugging into Stonekeep) track ownership history
+    // for a work over time, instead of only ever seeing its current holder.
+    event RightsTransferred(
+        bytes32 indexed workHash,
+        address indexed previousHolder,
+        address indexed newHolder,
+        uint256 timestamp
+    );
+
     // It runs once, when this contract is first deployed. It's told where
     // to find the registry so it can check registered works.
     constructor(address registryAddress) {
@@ -53,5 +63,7 @@ contract RightsAssignment {
         require(caller == current, "Only the current rights holder can transfer this");
 
         currentHolder[workHash] = newHolder;
+
+        emit RightsTransferred(workHash, current, newHolder, block.timestamp);
     }
 }

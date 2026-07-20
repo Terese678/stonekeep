@@ -23,6 +23,18 @@ contract StonekeepRegistry is IStonekeepRegistry {
     // saved under that fingerprint.
     mapping(bytes32 => Work) private works;
 
+    // Broadcast every time a new work gets registered. This doesn't change
+    // storage or logic at all, it just lets anyone listening (an indexer,
+    // a future "browse all works" page, another platform plugging in)
+    // hear about it in real time instead of having to scan every block.
+    event WorkRegistered(
+        bytes32 indexed workHash,
+        address indexed author,
+        string ipfsHash,
+        string title,
+        uint256 timestamp
+    );
+
     // This is how a creator actually registers their work. They provide
     // the fingerprint (hash) of their file, the IPFS link to where the
     // actual file is stored, and a title. Once saved, this can never be
@@ -31,6 +43,8 @@ contract StonekeepRegistry is IStonekeepRegistry {
         require(works[workHash].timestamp == 0, "This work is already registered");
 
         works[workHash] = Work(msg.sender, ipfsHash, title, block.timestamp);
+
+        emit WorkRegistered(workHash, msg.sender, ipfsHash, title, block.timestamp);
     }
 
     // This is how anyone can check who registered a work, where to find it,

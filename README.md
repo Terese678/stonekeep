@@ -27,19 +27,23 @@ The frontend automatically detects which network your wallet is connected to (te
 
 ## Contracts
 
-- `StonekeepRegistry.sol` — the core registry. Handles registering and looking up proof of authorship. Once something is registered here, it's permanent.
-- `RightsAssignment.sol` — handles transferring ownership of a registered work. Kept separate from the registry on purpose, since ownership can change hands while the original proof never should.
-- `interfaces/IStonekeepRegistry.sol` — a blueprint the two contracts above use to talk to each other without depending on internal details.
+- `StonekeepRegistry.sol` — the core registry. Handles registering and looking up proof of authorship. Once something is registered here, it's permanent. Emits a `WorkRegistered` event on every registration, so external platforms and future indexers can track registrations in real time rather than scanning every block.
+- `RightsAssignment.sol` — handles transferring ownership of a registered work. Kept separate from the registry on purpose, since ownership can change hands while the original proof never should. Emits a `RightsTransferred` event on every transfer, capturing the previous and new holder.
+- `interfaces/IStonekeepRegistry.sol` — a blueprint the two contracts above use 
+to talk to each other without depending on internal details. This same 
+interface means marketplaces, licensing platforms, or NFT tools can build 
+directly on top of Stonekeep's proof layer — calling `getWork()` to verify 
+authorship on-chain, without needing our permission or routing through us.
 
 ## Deployed on BOT Chain Testnet
 
-- StonekeepRegistry: `0xd82378cD929036AfC32db97DFe86b9fCF2e46258`
-- RightsAssignment: `0xb24DaB8a0E6Ad8Ac9a76746C6fF37fAFa4671Aaa`
+- StonekeepRegistry: `0xFc3eEC7D47E390A88D41860A7f331fFAab932044`
+- RightsAssignment: `0x7FB8B8B3Bd735212cd913A0d404b08F6c6d87798`
 
 ## Deployed on BOT Chain Mainnet
 
-- StonekeepRegistry: `0x3035DD6E7CDE03621B4621E70E65B87217346620`
-- RightsAssignment: `0x527A9b2a66Ed11796d89E1575A57C7c358dCd827`
+- StonekeepRegistry: `0x8e364326718676f3b1D74C8b51C3D355C4d659AE`
+- RightsAssignment: `0x7C4Cf3beA7e77aF85d6e3c13Df0Fe32Cd78539dB`
 
 ## Known limitations
 
