@@ -1,29 +1,48 @@
-// The Browse Works page - a public, read-only feed of every work
+// The Browse Works page, a public, read-only feed of every work
 // registered on Stonekeep. No wallet needed, since this is just reading
 // public on-chain data. Pulls past WorkRegistered events directly from
-// the chain using viem, starting from the block our testnet contract
-// was deployed in (no point scanning earlier than that).
+// the chain using viem. Defaults to Mainnet, since that's the real,
+// live activity that matters most, testnet is still available via
+// the toggle, mainly useful for testing new features safely.
 
 import { useState, useEffect } from 'react'
 import { createPublicClient, http, parseAbiItem } from 'viem'
-import { useContractAddresses } from '../config/getAddresses'
 
-// The block our testnet StonekeepRegistry was deployed in. Starting the
-// event search here (instead of block 0) keeps the query fast and cheap.
+// The block each contract was deployed in. Starting the event search
+// here (instead of block 0) keeps the query fast and cheap.
 const TESTNET_DEPLOY_BLOCK = 16898309n
+const MAINNET_DEPLOY_BLOCK = 16294775n // block of the mainnet StonekeepRegistry deploy tx
 
-// A minimal client just for reading testnet chain data. Separate from
-// wagmi's connected-wallet client, since Browse Works doesn't need a
-// wallet at all, it just needs to read public event logs.
-const testnetClient = createPublicClient({
-  chain: {
-    id: 968,
-    name: 'BOT Chain Testnet',
-    nativeCurrency: { name: 'BOT', symbol: 'BOT', decimals: 18 },
-    rpcUrls: { default: { http: ['https://rpc.bohr.life'] } },
+const NETWORKS = {
+  testnet: {
+    label: 'Testnet',
+    address: '0xFc3eEC7D47E390A88D41860A7f331fFAab932044',
+    deployBlock: TESTNET_DEPLOY_BLOCK,
+    client: createPublicClient({
+      chain: {
+        id: 968,
+        name: 'BOT Chain Testnet',
+        nativeCurrency: { name: 'BOT', symbol: 'BOT', decimals: 18 },
+        rpcUrls: { default: { http: ['https://rpc.bohr.life'] } },
+      },
+      transport: http(),
+    }),
   },
-  transport: http(),
-})
+  mainnet: {
+    label: 'Mainnet',
+    address: '0x8e364326718676f3b1D74C8b51C3D355C4d659AE',
+    deployBlock: MAINNET_DEPLOY_BLOCK,
+    client: createPublicClient({
+      chain: {
+        id: 677,
+        name: 'BOT Chain Mainnet',
+        nativeCurrency: { name: 'BOT', symbol: 'BOT', decimals: 18 },
+        rpcUrls: { default: { http: ['https://rpc.botchain.ai'] } },
+      },
+      transport: http(),
+    }),
+  },
+}
 
 // The exact shape of the WorkRegistered event, matching what we added
 // to StonekeepRegistry.sol. viem needs this to know how to decode the
@@ -33,8 +52,7 @@ const workRegisteredEvent = parseAbiItem(
 )
 
 function BrowseWorks() {
-  const addresses = useContractAddresses()
-
+  const [network, setNetwork] = useState('mainnet')
   const [works, setWorks] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -44,19 +62,17 @@ function BrowseWorks() {
     async function fetchWorks() {
       try {
         setIsLoading(true)
+        setError(null)
 
-        const logs = await testnetClient.getLogs({
-          // TEMPORARY: hardcoded to testnet only, since mainnet's official RPC
-          // (rpc.botchain.ai) currently blocks eth_getLogs. Once we have a working
-          // mainnet RPC alternative (or confirmation from BOTChain's team), this
-          // should become a network toggle instead of a hardcoded address.
-          address: '0xFc3eEC7D47E390A88D41860A7f331fFAab932044',
+        const { client, address, deployBlock } = NETWORKS[network]
+
+        const logs = await client.getLogs({
+          address,
           event: workRegisteredEvent,
-          fromBlock: TESTNET_DEPLOY_BLOCK,
+          fromBlock: deployBlock,
           toBlock: 'latest',
         })
 
-        // Newest first, and pull the readable fields out of each log's args
         const parsed = logs
           .map((log) => ({
             workHash: log.args.workHash,
@@ -76,10 +92,8 @@ function BrowseWorks() {
     }
 
     fetchWorks()
-  }, [])
+  }, [network])
 
-  // Simple client-side filter by title, since we're not dealing with
-  // huge volumes yet, no need for anything fancier than this right now.
   const filteredWorks = works.filter((work) =>
     work.title.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -91,9 +105,22 @@ function BrowseWorks() {
           Browse Works
         </h2>
 
-        <p className="text-sm text-bronze font-body mb-4">
-          Showing works registered on BOT Chain Testnet.
-        </p>
+        {/* Network toggle */}
+        <div className="flex gap-2 mb-4">
+          {Object.entries(NETWORKS).map(([key, { label }]) => (
+            <button
+              key={key}
+              onClick={() => setNetwork(key)}
+              className={`px-3 py-1.5 rounded-lg font-display text-xs uppercase tracking-wide border transition-all ${
+                network === key
+                  ? 'border-gold bg-gold text-obsidian'
+                  : 'border-border-warm text-gray-400 hover:text-gold'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         <input
           type="text"
