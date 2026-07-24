@@ -13,18 +13,18 @@ This milestone covers proof of authorship, IPFS storage, ownership transfer, and
 1. A creator uploads a file. It's hashed in the browser (a fingerprint of its exact content) and uploaded to IPFS via Pinata. The hash, IPFS link, and a title get registered on-chain.
 2. Anyone can upload that same file later and instantly see who registered it, when, and view the file itself via its IPFS link.
 3. The registered owner can transfer rights to someone else's wallet if ownership changes hands.
-4. Anyone can browse every work ever registered, no wallet required, since it's all public on-chain data.
+4. Anyone can browse every work ever registered on either network, no wallet required, since it's all public on-chain data.
 
 ## Frontend
 
 A React + Vite + wagmi app with real page navigation:
 
-- **Header** — persistent across every page: branding, navigation, and wallet connect/disconnect
+- **Header** — persistent across every page: branding, navigation, and wallet connect/disconnect. On mobile, if no wallet is detected, it shows a direct link into the MetaMask app instead of a dead button.
 - **Dashboard** (`/`) — the core actions:
   - **Register Work** — hash a file, upload to IPFS, write it on-chain
   - **Verify a Work** — re-check a file against the chain, no wallet needed
   - **Transfer Rights** — hand off ownership to a new wallet address
-- **Browse Works** (`/browse`) — a public, searchable feed of every registered work, pulled directly from on-chain `WorkRegistered` events
+- **Browse Works** (`/browse`) — a public, searchable feed of every registered work, with a toggle to view either testnet or mainnet activity
 
 Register, Verify, and Transfer Rights automatically detect which network your wallet is connected to (testnet or mainnet) and use the correct contract addresses.
 
@@ -61,11 +61,6 @@ authorship on-chain, without needing our permission or routing through us.
   permanently. I have a one-line fix ready, but redeploying now would mean 
   new contract addresses and re-registering test data, so it's deferred 
   to a follow-up update.
-
-- **Browse Works is testnet-only for now**: BOT Chain's official mainnet 
-  RPC endpoint (`rpc.botchain.ai`) currently disables `eth_getLogs`, which 
-  is needed to read past events efficiently. Browse Works reads directly 
-  from testnet until a working mainnet RPC alternative is confirmed.
 
 ## Scripts
 
