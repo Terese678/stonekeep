@@ -1,6 +1,6 @@
 // The persistent header, shown on every page (Dashboard, Browse, etc).
-// Thid holds the Stonekeep logo/branding, navigation between pages, and the
-// wallet connect/disconnect button; since wallet state matters no
+// Holds the Stonekeep logo/branding, navigation between pages, and the
+// wallet connect/disconnect button - since wallet state matters no
 // matter which page you're on, it lives here instead of inside any
 // individual feature panel.
 
@@ -11,6 +11,11 @@ function Header() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
+
+  // True if there's no wallet extension available AND we're likely on
+  // a phone (small screen) - the exact case where "Connect Injected"
+  // would otherwise do nothing, since phones don't support extensions.
+  const isMobileWithoutWallet = !window.ethereum && window.innerWidth < 768
 
   return (
     <header className="border-b border-border-warm px-10 py-7 flex items-center justify-between">
@@ -58,9 +63,19 @@ function Header() {
         </nav>
       </div>
 
-      {/* Wallet connect - same logic as before, just moved up here */}
+      {/* Wallet connect - same logic as before, plus a mobile-specific
+          fallback when no wallet is detectable (phones without an
+          in-app browser can't see window.ethereum at all). */}
       <div>
-        {isConnected ? (
+        {isMobileWithoutWallet ? (
+          
+            <a
+            href={`https://metamask.app.link/dapp/${window.location.host}`}
+            className="px-4 py-2 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all"
+          >
+            Open in MetaMask
+          </a>
+        ) : isConnected ? (
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-300 font-body">
               {address.slice(0, 6)}...{address.slice(-4)}
