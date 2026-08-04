@@ -1,14 +1,16 @@
 // This is the "Verify a Work" panel.
 // Anyone (no wallet needed) can drop in a file here and check if it's
 // already been registered. We hash the file the same way Register Work
-// does, then just read from the contract, no transaction, no gas, just
-// a lookup. If it matches, we show who registered it, when, and a link
-// to the actual file on IPFS.
+// does, then read from both contracts, no transaction, no gas, just a
+// lookup. StonekeepRegistry tells us who originally registered it and
+// when; RightsAssignment tells us who currently holds the rights, since
+// that can change hands over time while the original record never does.
 
 import { useState } from 'react'
 import { useReadContract } from 'wagmi'
 import { keccak256 } from 'viem'
 import { registryAbi } from '../config/abis'
+import { rightsAbi } from '../config/rightsAbi'
 import { useContractAddresses } from '../config/getAddresses'
 
 function VerifyWork() {
@@ -25,8 +27,8 @@ function VerifyWork() {
     setWorkHash(keccak256(new Uint8Array(buffer)))
   }
 
-  // Read-only call to the contract. Only fires once workHash is set
-  // AND we know which network's addresses to use (enabled: !!workHash && !!addresses).
+  // Read-only call to the registry. Only fires once workHash is set
+  // AND we know which network's addresses to use.
   const { data, isLoading, error } = useReadContract({
     address: addresses?.REGISTRY_ADDRESS,
     abi: registryAbi,
@@ -35,13 +37,29 @@ function VerifyWork() {
     query: { enabled: !!workHash && !!addresses },
   })
 
-  // getWork returns [author, ipfsHash, title, timestamp].
+  // getWork returns [author, ipfsHash, title, timestamp, attestsOwnership, disputed].
   // A zero-address author means nothing was ever registered under this hash.
   const isRegistered = data && data[0] !== '0x0000000000000000000000000000000000000000'
+
+  // Separate read-only call to RightsAssignment, asking who currently
+  // holds the rights. Only runs once we know the work is actually
+  // registered, no point checking rights on something that doesn't exist.
+  const { data: currentHolder } = useReadContract({
+    address: addresses?.RIGHTS_ADDRESS,
+    abi: rightsAbi,
+    functionName: 'getRightsHolder',
+    args: [workHash],
+    query: { enabled: !!workHash && !!addresses && !!isRegistered },
+  })
 
   // Small helper so the IPFS link is built once, cleanly, instead of
   // an inline template string sitting inside the JSX attribute below.
   const ipfsUrl = data && data[1] ? 'https://gateway.pinata.cloud/ipfs/' + data[1] : null
+
+  // If rights were never transferred, currentHolder falls back to the
+  // original author anyway (that's how RightsAssignment is built), so
+  // this comparison tells us whether a transfer has actually happened.
+  const wasTransferred = data && currentHolder && currentHolder.toLowerCase() !== data[0].toLowerCase()
 
   return (
     <div className="bg-panel border border-border-warm rounded-xl p-7 flex flex-col gap-4 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
@@ -73,8 +91,20 @@ function VerifyWork() {
         <div className="text-base font-body text-gray-200 flex flex-col gap-1.5">
           <p className="text-gold-bright text-lg font-display">Verified on-chain</p>
           <p>Title: {data[2]}</p>
-          <p>Author: {data[0].slice(0, 6)}...{data[0].slice(-4)}</p>
+          <p>Originally registered by: {data[0].slice(0, 6)}...{data[0].slice(-4)}</p>
           <p>Registered: {new Date(Number(data[3]) * 1000).toLocaleString()}</p>
+          <p>Attested ownership: {data[4] ? 'Yes' : 'No'}</p>
+          {currentHolder && (
+            <p>
+              Current rights holder: {currentHolder.slice(0, 6)}...{currentHolder.slice(-4)}
+              {wasTransferred && ' (transferred)'}
+            </p>
+          )}
+          {data[5] && (
+            <p className="text-red-400">
+              ⚠ This registration has been flagged as disputed by its author.
+            </p>
+          )}
           {ipfsUrl && (
             <a href={ipfsUrl} target="_blank" rel="noreferrer" className="text-gold underline">
               View file on IPFS

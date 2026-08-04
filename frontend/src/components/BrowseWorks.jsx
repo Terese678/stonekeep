@@ -10,13 +10,13 @@ import { createPublicClient, http, parseAbiItem } from 'viem'
 
 // The block each contract was deployed in. Starting the event search
 // here (instead of block 0) keeps the query fast and cheap.
-const TESTNET_DEPLOY_BLOCK = 16898309n
-const MAINNET_DEPLOY_BLOCK = 16294775n // block of the mainnet StonekeepRegistry deploy tx
+const TESTNET_DEPLOY_BLOCK = 18484406n // block of the current testnet StonekeepRegistry deploy tx
+const MAINNET_DEPLOY_BLOCK = 18346894n // block of the current mainnet StonekeepRegistry deploy tx
 
 const NETWORKS = {
   testnet: {
     label: 'Testnet',
-    address: '0xFc3eEC7D47E390A88D41860A7f331fFAab932044',
+    address: '0xF93a927d9A7449aF5E3573646301EB0BF5Df5395',
     deployBlock: TESTNET_DEPLOY_BLOCK,
     client: createPublicClient({
       chain: {
@@ -30,7 +30,7 @@ const NETWORKS = {
   },
   mainnet: {
     label: 'Mainnet',
-    address: '0x8e364326718676f3b1D74C8b51C3D355C4d659AE',
+    address: '0xeCA06aDAD4e9D7469DDfd24c18D32b1d0CA38378',
     deployBlock: MAINNET_DEPLOY_BLOCK,
     client: createPublicClient({
       chain: {
@@ -48,7 +48,7 @@ const NETWORKS = {
 // to StonekeepRegistry.sol. viem needs this to know how to decode the
 // raw log data into readable fields.
 const workRegisteredEvent = parseAbiItem(
-  'event WorkRegistered(bytes32 indexed workHash, address indexed author, string ipfsHash, string title, uint256 timestamp)'
+  'event WorkRegistered(bytes32 indexed workHash, address indexed author, string ipfsHash, string title, uint256 timestamp, bool attestsOwnership)'
 )
 
 function BrowseWorks() {
@@ -59,19 +59,39 @@ function BrowseWorks() {
   const [searchTerm, setSearchTerm] = useState('')
 
   useEffect(() => {
+    let cancelled = false
+
     async function fetchWorks() {
       try {
         setIsLoading(true)
         setError(null)
+        setWorks([])
 
         const { client, address, deployBlock } = NETWORKS[network]
 
-        const logs = await client.getLogs({
-          address,
-          event: workRegisteredEvent,
-          fromBlock: deployBlock,
-          toBlock: 'latest',
-        })
+        const currentBlock = await client.getBlockNumber()
+
+        const MAX_RANGE = 5000n
+        let logs = []
+        let fromBlock = deployBlock
+
+        while (fromBlock <= currentBlock) {
+          const toBlock = fromBlock + MAX_RANGE - 1n > currentBlock
+            ? currentBlock
+            : fromBlock + MAX_RANGE - 1n
+
+          const chunkLogs = await client.getLogs({
+            address,
+            event: workRegisteredEvent,
+            fromBlock,
+            toBlock,
+          })
+
+          logs = logs.concat(chunkLogs)
+          fromBlock = toBlock + 1n
+        }
+
+        if (cancelled) return
 
         const parsed = logs
           .map((log) => ({
@@ -80,18 +100,23 @@ function BrowseWorks() {
             ipfsHash: log.args.ipfsHash,
             title: log.args.title,
             timestamp: log.args.timestamp,
+            attestsOwnership: log.args.attestsOwnership,
           }))
           .reverse()
 
         setWorks(parsed)
       } catch (err) {
-        setError(err)
+        if (!cancelled) setError(err)
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
 
     fetchWorks()
+
+    return () => {
+      cancelled = true
+    }
   }, [network])
 
   const filteredWorks = works.filter((work) =>
