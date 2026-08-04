@@ -13,57 +13,59 @@ contract RightsAssignment {
     // actually registered before letting anyone deal with its rights.
     IStonekeepRegistry public registry;
 
-    // This will track who currently holds the rights to a work. If a work has never
-    // been transferred, this stays empty; in that case, the original
-    // author (from the registry) is treated as the current owner.
+    // This tracks who currently holds the rights to a work. If a work has
+    // never been transferred, this stays empty, and the original author
+    // from the registry is treated as the current owner.
     mapping(bytes32 => address) private currentHolder;
 
-    // Broadcast every time rights actually change hands. Lets an indexer
-    // (or any platform plugging into Stonekeep) track ownership history
-    // for a work over time, instead of only ever seeing its current holder.
-    event RightsTransferred(
-        bytes32 indexed workHash,
-        address indexed previousHolder,
-        address indexed newHolder,
-        uint256 timestamp
-    );
+    // Broadcast every time rights to a work are transferred. Lets an
+    // indexer build a full ownership history for any given work without
+    // scanning every block.
+    event RightsTransferred(bytes32 indexed workHash, address indexed previousHolder, address indexed newHolder);
 
-    // It runs once, when this contract is first deployed. It's told where
+    // Runs once, when this contract is first deployed. It's told where
     // to find the registry so it can check registered works.
     constructor(address registryAddress) {
         registry = IStonekeepRegistry(registryAddress);
     }
 
-    // anyone can call this to check who currently owns a work's rights.
+    // Anyone can call this to check who currently owns a work's rights.
     // If ownership was never transferred, we fall back to the original
     // author recorded in the registry.
     function getRightsHolder(bytes32 workHash) external view returns (address) {
         address holder = currentHolder[workHash];
 
         if (holder == address(0)) {
-            (address author, , , ) = registry.getWork(workHash);
+            (address author, , , , , ) = registry.getWork(workHash);
             return author;
         }
 
         return holder;
     }
 
-    // this will let the current rights holder transfer ownership to someone new.
-    // Only the current holder can do this; nobody else is allowed to
+    // Lets the current rights holder transfer ownership to someone new.
+    // Only the current holder can do this, nobody else is allowed to
     // give away rights that aren't theirs.
     function transferRights(bytes32 workHash, address newHolder) external {
+        require(newHolder != address(0), "Cannot transfer to the zero address");
+
         address caller = msg.sender;
         address current = currentHolder[workHash];
 
         if (current == address(0)) {
-            (address author, , , ) = registry.getWork(workHash);
+            // This call to the registry is a view function with no
+            // ability to call back into this contract, so there's no
+            // reentrancy risk here even though it happens before the
+            // state change below.
+            (address author, , , , , ) = registry.getWork(workHash);
             current = author;
         }
 
         require(caller == current, "Only the current rights holder can transfer this");
+        require(newHolder != caller, "Cannot transfer rights to yourself");
 
         currentHolder[workHash] = newHolder;
 
-        emit RightsTransferred(workHash, current, newHolder, block.timestamp);
+        emit RightsTransferred(workHash, current, newHolder);
     }
 }

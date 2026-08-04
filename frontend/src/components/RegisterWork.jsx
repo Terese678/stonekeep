@@ -7,6 +7,10 @@
 // The file is also uploaded to Pinata so we get a real IPFS CID to store
 // as ipfsHash, instead of an empty placeholder.
 
+// Registering also requires an explicit attestation checkbox. The contract
+// itself requires attestsOwnership to be true, so this isn't just a UI
+// nicety, it's a real on-chain claim the registrant is making.
+
 import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { keccak256 } from 'viem'
@@ -21,6 +25,7 @@ function RegisterWork() {
   const [title, setTitle] = useState('')
   const [file, setFile] = useState(null)
   const [workHash, setWorkHash] = useState(null)
+  const [attestsOwnership, setAttestsOwnership] = useState(false)
 
   // writeContract triggers the actual transaction (MetaMask popup, gas, etc.)
   const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract()
@@ -45,10 +50,11 @@ function RegisterWork() {
   }
 
   // Uploads the file to Pinata first to get a real CID, then writes the
-  // hash + CID + title on-chain. async because both steps take real time.
+  // hash + CID + title + attestation on-chain. async because both steps
+  // take real time.
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!workHash || !title) return
+    if (!workHash || !title || !attestsOwnership) return
 
     const ipfsHash = await uploadToPinata(file) // upload first, get real CID
 
@@ -56,7 +62,7 @@ function RegisterWork() {
       address: addresses.REGISTRY_ADDRESS,
       abi: registryAbi,
       functionName: 'registerWork',
-      args: [workHash, ipfsHash, title],
+      args: [workHash, ipfsHash, title, attestsOwnership],
     })
   }
 
@@ -116,9 +122,22 @@ function RegisterWork() {
           </p>
         )}
 
+        {/* Required attestation. The contract itself rejects registration
+            if this isn't true, so this checkbox is a real claim, not
+            just a UI formality. */}
+        <label className="flex items-start gap-2.5 text-sm text-gray-300 font-body cursor-pointer">
+          <input
+            type="checkbox"
+            checked={attestsOwnership}
+            onChange={(e) => setAttestsOwnership(e.target.checked)}
+            className="mt-0.5 cursor-pointer"
+          />
+          <span>I confirm I am the creator of this work and have the right to register it.</span>
+        </label>
+
         <button
           type="submit"
-          disabled={!file || !title || isPending || isConfirming}
+          disabled={!file || !title || !attestsOwnership || isPending || isConfirming}
           className="px-4 py-3 border border-gold text-gold rounded-lg font-display text-base tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gold"
         >
           {isPending
