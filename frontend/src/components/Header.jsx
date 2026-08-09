@@ -18,8 +18,8 @@ function Header() {
   const isMobileWithoutWallet = !window.ethereum && window.innerWidth < 768
 
   return (
-    <header className="border-b border-border-warm px-10 py-7 flex items-center justify-between">
-      <div className="flex items-center gap-8">
+    <header className="border-b border-border-warm px-4 md:px-10 py-4 md:py-7 flex flex-wrap items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center gap-4 md:gap-8">
         {/* Logo + name */}
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full border border-gold flex items-center justify-center">
@@ -41,22 +41,22 @@ function Header() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-display font-bold tracking-wide text-gold-bright">
+          <h1 className="text-2xl md:text-3xl font-display font-bold tracking-wide text-gold-bright">
             STONEKEEP
           </h1>
         </Link>
 
         {/* Page navigation */}
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4 md:gap-6">
           <Link
             to="/"
-            className="text-sm font-display uppercase tracking-[0.15em] text-gray-300 hover:text-gold-bright transition-colors"
+            className="text-xs md:text-sm font-display uppercase tracking-[0.15em] text-gray-300 hover:text-gold-bright transition-colors"
           >
             Dashboard
           </Link>
           <Link
             to="/browse"
-            className="text-sm font-display uppercase tracking-[0.15em] text-gray-300 hover:text-gold-bright transition-colors"
+            className="text-xs md:text-sm font-display uppercase tracking-[0.15em] text-gray-300 hover:text-gold-bright transition-colors"
           >
             Browse
           </Link>
