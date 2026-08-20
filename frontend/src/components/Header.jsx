@@ -9,13 +9,19 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi'
 
 function Header() {
   const { address, isConnected } = useAccount()
-  const { connect, connectors } = useConnect()
+  const { connect, connectors, error, isPending } = useConnect()
   const { disconnect } = useDisconnect()
 
-  // True if there's no wallet extension available AND we're likely on
-  // a phone (small screen) - the exact case where "Connect Injected"
-  // would otherwise do nothing, since phones don't support extensions.
-  const isMobileWithoutWallet = !window.ethereum && window.innerWidth < 768
+  // Always attempt connect on click - no pre-guessing based on screen
+  // width or window.ethereum. React to what actually happens instead.
+  function handleConnect() {
+    connect({ connector: connectors[0] })
+  }
+
+  // If connect failed AND there's genuinely no injected provider, that's
+  // specifically "no wallet found" - different from other failures like
+  // the user rejecting the connection request.
+  const noProviderFound = error && !window.ethereum
 
   return (
     <header className="border-b border-border-warm px-4 md:px-10 py-4 md:py-7 flex flex-wrap items-center justify-between gap-4">
@@ -63,19 +69,12 @@ function Header() {
         </nav>
       </div>
 
-      {/* Wallet connect - same logic as before, plus a mobile-specific
-          fallback when no wallet is detectable (phones without an
-          in-app browser can't see window.ethereum at all). */}
-      <div>
-        {isMobileWithoutWallet ? (
-          
-            <a
-            href={`https://metamask.app.link/dapp/${window.location.host}`}
-            className="px-4 py-2 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all"
-          >
-            Open in MetaMask
-          </a>
-        ) : isConnected ? (
+      {/* Wallet connect - always tries to connect on click, then reacts
+          to what actually happened instead of pre-guessing device/wallet
+          state. No provider found -> tell the user and link them to get
+          MetaMask. Any other failure -> show the real error. */}
+      <div className="flex flex-col items-end gap-2">
+        {isConnected ? (
           <div className="flex items-center gap-3">
             <span className="text-sm text-gray-300 font-body">
               {address.slice(0, 6)}...{address.slice(-4)}
@@ -88,15 +87,32 @@ function Header() {
             </button>
           </div>
         ) : (
-          connectors.map((connector) => (
-            <button
-              key={connector.id}
-              onClick={() => connect({ connector })}
-              className="px-4 py-2 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all"
-            >
-              Connect {connector.name}
-            </button>
-          ))
+          <button
+            onClick={handleConnect}
+            disabled={isPending}
+            className="px-4 py-2 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-50"
+          >
+            {isPending ? 'Connecting...' : 'Connect Wallet'}
+          </button>
+        )}
+
+        {error && (
+          <p className="text-xs text-red-400 font-body text-right max-w-xs">
+            {noProviderFound ? (
+              <>
+                No wallet found.{' '}
+                
+                  <a
+                  href={`https://metamask.app.link/dapp/${window.location.host}`}
+                  className="underline text-gold"
+                >
+                  Get MetaMask
+                </a>
+              </>
+            ) : (
+              error.shortMessage || error.message
+            )}
+          </p>
         )}
       </div>
     </header>
