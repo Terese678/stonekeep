@@ -11,6 +11,13 @@
 // itself requires attestsOwnership to be true, so this isn't just a UI
 // nicety, it's a real on-chain claim the registrant is making.
 
+// Before writing to chain, we also ask our own /api/check-similarity
+// endpoint (backed by Backboard) whether this title resembles anything
+// already registered. This is informational, not a hard block, since we
+// can't (and shouldn't) prevent someone from registering their own work
+// just because titles happen to look similar - but it's worth surfacing
+// so the creator can make an informed call before paying gas.
+
 import { useState } from 'react'
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { keccak256 } from 'viem'
@@ -26,6 +33,12 @@ function RegisterWork() {
   const [file, setFile] = useState(null)
   const [workHash, setWorkHash] = useState(null)
   const [attestsOwnership, setAttestsOwnership] = useState(false)
+
+  // Similarity check state - separate from the on-chain transaction state
+  // below, since this happens first and is its own async step.
+  const [checkingSimilarity, setCheckingSimilarity] = useState(false)
+  const [similarityResult, setSimilarityResult] = useState(null) // { similar, matchTitle, reason } | null
+  const [similarityError, setSimilarityError] = useState(null)
 
   // writeContract triggers the actual transaction (MetaMask popup, gas, etc.)
   const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract()
@@ -43,19 +56,50 @@ function RegisterWork() {
     if (!selected) return
 
     setFile(selected)
+    setSimilarityResult(null) // a new file means any prior check is stale
+    setSimilarityError(null)
 
     const buffer = await selected.arrayBuffer()
     const hash = keccak256(new Uint8Array(buffer))
     setWorkHash(hash)
   }
 
+  // Calls our own backend, which asks Backboard whether this title
+  // resembles anything previously registered. Never blocks registration
+  // on its own - just informs the "Register on-chain" button's label
+  // and shows a warning banner if something similar turns up.
+  async function checkSimilarity() {
+    setCheckingSimilarity(true)
+    setSimilarityError(null)
+
+    try {
+      const res = await fetch('/api/check-similarity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, workHash }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Similarity check failed')
+      }
+
+      const data = await res.json()
+      setSimilarityResult(data)
+    } catch (err) {
+      // If the check itself fails (network issue, Backboard down, etc.),
+      // we don't want that to block registration entirely - just note it
+      // and let the creator proceed without a similarity opinion.
+      setSimilarityError(err.message)
+    } finally {
+      setCheckingSimilarity(false)
+    }
+  }
+
   // Uploads the file to Pinata first to get a real CID, then writes the
   // hash + CID + title + attestation on-chain. async because both steps
   // take real time.
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (!workHash || !title || !attestsOwnership) return
-
+  async function registerOnChain() {
     const ipfsHash = await uploadToPinata(file) // upload first, get real CID
 
     writeContract({
@@ -64,6 +108,21 @@ function RegisterWork() {
       functionName: 'registerWork',
       args: [workHash, ipfsHash, title, attestsOwnership],
     })
+  }
+
+  // The main submit button. First run, this triggers the similarity
+  // check. If nothing similar was found (or the creator already saw the
+  // warning and clicks again), it proceeds to the actual on-chain write.
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (!workHash || !title || !attestsOwnership) return
+
+    if (!similarityResult) {
+      await checkSimilarity()
+      return // wait for the result to render before actually registering
+    }
+
+    await registerOnChain()
   }
 
   // If wallet isn't connected, don't even show the form, just a prompt.
@@ -105,7 +164,10 @@ function RegisterWork() {
           type="text"
           placeholder="Title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value)
+            setSimilarityResult(null) // a changed title means re-check
+          }}
           className="bg-obsidian border border-border-warm rounded-lg px-3 py-2.5 text-base font-body text-white placeholder:text-gray-500"
         />
 
@@ -135,18 +197,51 @@ function RegisterWork() {
           <span>I confirm I am the creator of this work and have the right to register it.</span>
         </label>
 
+        {/* Similarity warning banner - only shown if the check found a
+            likely match. Doesn't block registration, just informs. */}
+        {similarityResult?.similar && (
+          <div className="border border-yellow-600/50 bg-yellow-950/20 rounded-lg p-3">
+            <p className="text-sm text-yellow-400 font-body">
+              This may resemble an existing work: "{similarityResult.matchTitle}"
+            </p>
+            {similarityResult.reason && (
+              <p className="text-sm text-yellow-500/70 font-body mt-1">
+                {similarityResult.reason}
+              </p>
+            )}
+          </div>
+        )}
+
+        {similarityResult && similarityResult.similar === false && (
+          <p className="text-sm text-gold-bright/70 font-body">
+            No similar work found.
+          </p>
+        )}
+
+        {similarityError && (
+          <p className="text-sm text-gray-500 font-body">
+            Similarity check unavailable, proceeding without it.
+          </p>
+        )}
+
         <button
           type="submit"
-          disabled={!file || !title || !attestsOwnership || isPending || isConfirming}
+          disabled={!file || !title || !attestsOwnership || checkingSimilarity || isPending || isConfirming}
           className="px-4 py-3 border border-gold text-gold rounded-lg font-display text-base tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gold"
         >
-          {isPending
+          {checkingSimilarity
+            ? 'Checking for similar work...'
+            : isPending
             ? 'Confirm in wallet...'
             : isConfirming
             ? 'Registering...'
             : isConfirmed
             ? 'Registered ✓'
-            : 'Register on-chain'}
+            : similarityResult?.similar
+            ? 'Register anyway'
+            : similarityResult
+            ? 'Register on-chain'
+            : 'Check & register'}
         </button>
 
         {writeError && (
