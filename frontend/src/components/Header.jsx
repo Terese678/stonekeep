@@ -4,13 +4,17 @@
 // matter which page you're on, it lives here instead of inside any
 // individual feature panel.
 
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
+import { botChainMainnet, botChainTestnet } from '../config/wagmi'
 
 function Header() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, error, isPending } = useConnect()
   const { disconnect } = useDisconnect()
+  const chainId = useChainId()
+  const { switchChain, isPending: isSwitching } = useSwitchChain()
 
   // Always attempt connect on click - no pre-guessing based on screen
   // width or window.ethereum. React to what actually happens instead.
@@ -22,6 +26,20 @@ function Header() {
   // specifically "no wallet found" - different from other failures like
   // the user rejecting the connection request.
   const noProviderFound = error && !window.ethereum
+
+  const isOnBotChain = chainId === botChainMainnet.id || chainId === botChainTestnet.id
+
+  // The moment a wallet connects on the wrong network, prompt a switch
+  // to BOT Chain Mainnet automatically. wagmi's switchChain uses the
+  // chain definition already registered in wagmi.js (RPC URL, explorer,
+  // currency), so if the wallet doesn't have BOT Chain added yet, this
+  // silently adds it first, then switches - no separate "add network"
+  // flow needed, and no manual RPC entry for the user.
+  useEffect(() => {
+    if (isConnected && !isOnBotChain) {
+      switchChain({ chainId: botChainMainnet.id })
+    }
+  }, [isConnected, isOnBotChain, switchChain])
 
   return (
     <header className="border-b border-border-warm px-4 md:px-10 py-4 md:py-7 flex flex-wrap items-center justify-between gap-4">
@@ -71,11 +89,16 @@ function Header() {
 
       {/* Wallet connect - always tries to connect on click, then reacts
           to what actually happened instead of pre-guessing device/wallet
-          state. No provider found -> tell the user and link them to get
-          MetaMask. Any other failure -> show the real error. */}
+          state. Once connected, auto-prompts a switch to BOT Chain if
+          the wallet is on the wrong network. */}
       <div className="flex flex-col items-end gap-2">
         {isConnected ? (
           <div className="flex items-center gap-3">
+            {!isOnBotChain && (
+              <span className="text-sm text-yellow-400 font-body">
+                {isSwitching ? 'Switching to BOT Chain...' : 'Wrong network'}
+              </span>
+            )}
             <span className="text-sm text-gray-300 font-body">
               {address.slice(0, 6)}...{address.slice(-4)}
             </span>
@@ -119,4 +142,4 @@ function Header() {
   )
 }
 
-export default Header
+export default Header 
