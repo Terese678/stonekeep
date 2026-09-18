@@ -39,7 +39,7 @@ function Header() {
     if (isConnected && !isOnBotChain) {
       switchChain({ chainId: botChainMainnet.id })
     }
-  }, [isConnected, isOnBotChain, switchChain])
+  }, [isConnected, isOnBotChain, switchChain])    
 
   return (
     <header className="border-b border-border-warm px-4 md:px-10 py-4 md:py-7 flex flex-wrap items-center justify-between gap-4">
