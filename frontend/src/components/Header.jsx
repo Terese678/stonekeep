@@ -131,6 +131,16 @@ function Header() {
           </button>
         )}
 
+        {/* TEMPORARY: raw state readout, visible directly on the page,
+            so we can see exactly what the code believes is true on a
+            device with no accessible console (like a phone). Remove
+            once the auto-switch behavior is confirmed working. */}
+        {isConnected && (
+          <p className="text-xs text-purple-400 font-body">
+            isConnected: {String(isConnected)} | chainId: {String(chainId)} | isOnBotChain: {String(isOnBotChain)}
+          </p>
+        )}
+
         {switchDebug && (
           <p className="text-xs text-blue-400 font-body">{switchDebug}</p>
         )}
