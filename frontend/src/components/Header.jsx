@@ -4,7 +4,7 @@
 // matter which page you're on, it lives here instead of inside any
 // individual feature panel.
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
 import { botChainMainnet, botChainTestnet } from '../config/wagmi'
@@ -29,6 +29,11 @@ function Header() {
 
   const isOnBotChain = chainId === botChainMainnet.id || chainId === botChainTestnet.id
 
+  // TEMPORARY: visible debug output so we can see what happens on mobile,
+  // where there's no easy console access. Remove once the auto-switch
+  // behavior is confirmed working.
+  const [switchDebug, setSwitchDebug] = useState('')
+
   // The moment a wallet connects on the wrong network, prompt a switch
   // to BOT Chain Mainnet automatically. wagmi's switchChain uses the
   // chain definition already registered in wagmi.js (RPC URL, explorer,
@@ -37,9 +42,16 @@ function Header() {
   // flow needed, and no manual RPC entry for the user.
   useEffect(() => {
     if (isConnected && !isOnBotChain) {
-      switchChain({ chainId: botChainMainnet.id })
+      setSwitchDebug('Attempting switch...')
+      switchChain(
+        { chainId: botChainMainnet.id },
+        {
+          onSuccess: () => setSwitchDebug('Switch succeeded'),
+          onError: (err) => setSwitchDebug(`Switch failed: ${err.message || err.name || 'unknown error'}`),
+        }
+      )
     }
-  }, [isConnected, isOnBotChain, switchChain])    
+  }, [isConnected, isOnBotChain, switchChain])
 
   return (
     <header className="border-b border-border-warm px-4 md:px-10 py-4 md:py-7 flex flex-wrap items-center justify-between gap-4">
@@ -119,6 +131,10 @@ function Header() {
           </button>
         )}
 
+        {switchDebug && (
+          <p className="text-xs text-blue-400 font-body">{switchDebug}</p>
+        )}
+
         {error && (
           <p className="text-xs text-red-400 font-body text-right max-w-xs">
             {noProviderFound ? (
@@ -142,4 +158,4 @@ function Header() {
   )
 }
 
-export default Header 
+export default Header
