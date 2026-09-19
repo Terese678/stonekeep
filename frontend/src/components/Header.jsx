@@ -27,7 +27,7 @@ function Header() {
   // the user rejecting the connection request.
   const noProviderFound = error && !window.ethereum
 
-  const isOnBotChain = chainId === botChainMainnet.id || chainId === botChainTestnet.id
+  const isOnBotChain = chainId === botChainMainnet.id
 
   // TEMPORARY: visible debug output so we can see what happens on mobile,
   // where there's no easy console access. Remove once the auto-switch
