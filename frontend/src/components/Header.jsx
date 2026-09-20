@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAccount, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
-import { botChainMainnet, botChainTestnet } from '../config/wagmi'
+import { botChainMainnet } from '../config/wagmi'
 
 function Header() {
   const { address, isConnected } = useAccount()
@@ -27,29 +27,29 @@ function Header() {
   // the user rejecting the connection request.
   const noProviderFound = error && !window.ethereum
 
+  // Mainnet specifically, not testnet - real registrations and real
+  // usage data need to happen on mainnet, so that's the only network
+  // considered "correct" for auto-switch purposes.
   const isOnBotChain = chainId === botChainMainnet.id
 
-  // TEMPORARY: visible debug output so we can see what happens on mobile,
-  // where there's no easy console access. Remove once the auto-switch
-  // behavior is confirmed working.
-  const [switchDebug, setSwitchDebug] = useState('')
+  // Programmatic chain switching is unreliable on some wallets/mobile
+  // browsers (a known, longstanding limitation, not something specific
+  // to our setup - confirmed via wagmi's own GitHub discussions). So we
+  // attempt it automatically where possible, but fall back to a clear,
+  // actionable manual instruction if it fails, rather than a raw
+  // technical error or silent failure.
+  const [switchFailed, setSwitchFailed] = useState(false)
 
-  // The moment a wallet connects on the wrong network, prompt a switch
-  // to BOT Chain Mainnet automatically. wagmi's switchChain uses the
-  // chain definition already registered in wagmi.js (RPC URL, explorer,
-  // currency), so if the wallet doesn't have BOT Chain added yet, this
-  // silently adds it first, then switches - no separate "add network"
-  // flow needed, and no manual RPC entry for the user.
   useEffect(() => {
     if (isConnected && !isOnBotChain) {
-      setSwitchDebug('Attempting switch...')
       switchChain(
         { chainId: botChainMainnet.id },
         {
-          onSuccess: () => setSwitchDebug('Switch succeeded'),
-          onError: (err) => setSwitchDebug(`Switch failed: ${err.message || err.name || 'unknown error'}`),
+          onError: () => setSwitchFailed(true),
         }
       )
+    } else {
+      setSwitchFailed(false)
     }
   }, [isConnected, isOnBotChain, switchChain])
 
@@ -101,8 +101,9 @@ function Header() {
 
       {/* Wallet connect - always tries to connect on click, then reacts
           to what actually happened instead of pre-guessing device/wallet
-          state. Once connected, auto-prompts a switch to BOT Chain if
-          the wallet is on the wrong network. */}
+          state. Once connected, attempts an automatic switch to BOT
+          Chain Mainnet if on the wrong network, falling back to a clear
+          manual instruction if the wallet doesn't support that. */}
       <div className="flex flex-col items-end gap-2">
         {isConnected ? (
           <div className="flex items-center gap-3">
@@ -131,18 +132,10 @@ function Header() {
           </button>
         )}
 
-        {/* TEMPORARY: raw state readout, visible directly on the page,
-            so we can see exactly what the code believes is true on a
-            device with no accessible console (like a phone). Remove
-            once the auto-switch behavior is confirmed working. */}
-        {isConnected && (
-          <p className="text-xs text-purple-400 font-body">
-            isConnected: {String(isConnected)} | chainId: {String(chainId)} | isOnBotChain: {String(isOnBotChain)}
+        {switchFailed && !isOnBotChain && (
+          <p className="text-xs text-yellow-400 font-body text-right max-w-xs">
+            Please switch to BOT Chain Mainnet manually in your wallet app.
           </p>
-        )}
-
-        {switchDebug && (
-          <p className="text-xs text-blue-400 font-body">{switchDebug}</p>
         )}
 
         {error && (
