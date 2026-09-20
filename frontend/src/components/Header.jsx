@@ -53,6 +53,13 @@ function Header() {
     }
   }, [isConnected, isOnBotChain, switchChain])
 
+  // Purely for display purposes (suggesting MetaMask's in-app browser
+  // below) - not used for any connection logic, since programmatic
+  // network switching tends to be far more reliable when the site is
+  // opened inside MetaMask's own browser rather than a regular mobile
+  // browser tab.
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
   return (
     <header className="border-b border-border-warm px-4 md:px-10 py-4 md:py-7 flex flex-wrap items-center justify-between gap-4">
       <div className="flex flex-wrap items-center gap-4 md:gap-8">
@@ -103,7 +110,9 @@ function Header() {
           to what actually happened instead of pre-guessing device/wallet
           state. Once connected, attempts an automatic switch to BOT
           Chain Mainnet if on the wrong network, falling back to a clear
-          manual instruction if the wallet doesn't support that. */}
+          manual instruction if the wallet doesn't support that. Mobile
+          users also see a suggestion to use MetaMask's own browser,
+          where switching tends to work more reliably. */}
       <div className="flex flex-col items-end gap-2">
         {isConnected ? (
           <div className="flex items-center gap-3">
@@ -123,13 +132,24 @@ function Header() {
             </button>
           </div>
         ) : (
-          <button
-            onClick={handleConnect}
-            disabled={isPending}
-            className="px-4 py-2 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-50"
-          >
-            {isPending ? 'Connecting...' : 'Connect Wallet'}
-          </button>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleConnect}
+              disabled={isPending}
+              className="px-4 py-2 border border-gold text-gold rounded-lg font-display text-sm tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-50"
+            >
+              {isPending ? 'Connecting...' : 'Connect Wallet'}
+            </button>
+
+            {isMobile && (
+              
+                <a href={`https://metamask.app.link/dapp/${window.location.host}`}
+                className="text-xs text-gray-400 font-body underline"
+              >
+                On mobile? Open in MetaMask's browser for the smoothest experience
+              </a>
+            )}
+          </div>
         )}
 
         {switchFailed && !isOnBotChain && (
@@ -144,8 +164,7 @@ function Header() {
               <>
                 No wallet found.{' '}
                 
-                  <a
-                  href={`https://metamask.app.link/dapp/${window.location.host}`}
+                  <a href={`https://metamask.app.link/dapp/${window.location.host}`}
                   className="underline text-gold"
                 >
                   Get MetaMask
