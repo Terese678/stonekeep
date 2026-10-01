@@ -6,11 +6,11 @@ On-chain proof of authorship for creators, built on BOT Chain.
 
 Stonekeep lets a creator register their work (a script, a file, anything) permanently on-chain. Once it's registered, that record can never be changed or deleted; it's proof of who made something, and exactly when.
 
-This milestone covers proof of authorship, self-attestation, IPFS storage, ownership transfer, dispute flagging, and public discovery of registered works; all working end-to-end with a live frontend, deployed on both testnet and mainnet.
+This milestone covers proof of authorship, self-attestation, IPFS storage, ownership transfer, dispute flagging, AI-assisted similarity checking, and public discovery of registered works; all working end-to-end with a live frontend, deployed on both testnet and mainnet.
 
 ## How it works
 
-1. A creator uploads a file. It's hashed in the browser (a fingerprint of its exact content) and uploaded to IPFS via Pinata. The hash, IPFS link, a title, and an explicit attestation that they're the creator get registered on-chain.
+1. A creator uploads a file. It's hashed in the browser (a fingerprint of its exact content) and uploaded to IPFS via Pinata. Before registering, the title is checked against previously registered works using an AI similarity check (via Backboard), flagging anything that looks like a likely duplicate so the creator can make an informed call before paying gas. The hash, IPFS link, a title, and an explicit attestation that they're the creator get registered on-chain.
 2. Anyone can upload that same file later and instantly see who registered it, when, whether they attested to being the creator, whether it's been flagged disputed, and view the file itself via its IPFS link.
 3. The registered owner can transfer rights to someone else's wallet if ownership changes hands.
 4. If a registrant made a mistake, they can flag their own registration as disputed. This doesn't remove or hide the record, nothing can, it just adds a visible flag anyone checking the work will see.
@@ -20,14 +20,18 @@ This milestone covers proof of authorship, self-attestation, IPFS storage, owner
 
 A React + Vite + wagmi app with real page navigation:
 
-- **Header** — persistent across every page: branding, navigation, and wallet connect/disconnect. On mobile, if no wallet is detected, it shows a direct link into the MetaMask app instead of a dead button.
+- **Header** — persistent across every page: branding, navigation, and wallet connect/disconnect. If a connected wallet is on the wrong network, Stonekeep automatically prompts a switch to BOT Chain Mainnet. If the wallet doesn't support switching programmatically (a known limitation on some mobile wallets), a fallback card shows the exact network details (RPC URL, chain ID, currency symbol, explorer URL) with one-tap copy buttons and step-by-step manual instructions. Mobile visitors who aren't yet connected also see a suggestion to open Stonekeep through MetaMask's own in-app browser, where network switching tends to work more reliably.
 - **Dashboard** (`/`) — the core actions:
-  - **Register Work** — hash a file, upload to IPFS, attest to ownership, write it on-chain
+  - **Register Work** — hash a file, upload to IPFS, run an AI similarity check against prior registrations, attest to ownership, write it on-chain
   - **Verify a Work** — re-check a file against the chain, no wallet needed, shows original author, current rights holder, attestation, and dispute status
   - **Transfer Rights** — hand off ownership to a new wallet address
 - **Browse Works** (`/browse`) — a public, searchable feed of every registered work, with a toggle to view either testnet or mainnet activity
 
 Register, Verify, and Transfer Rights automatically detect which network your wallet is connected to (testnet or mainnet) and use the correct contract addresses.
+
+## AI similarity check
+
+Before a work is registered, its title is checked against every previously registered work using Backboard's document search: the new title is uploaded as a small document to a dedicated Backboard assistant, which compares it against everything registered before it. If something closely resembles an existing entry, the creator sees a warning naming the likely match and why, before they pay gas to register — entirely informational, never a hard block, since Stonekeep can't and shouldn't stop someone from registering their own work. A lightweight Supabase table maps each on-chain work hash to its corresponding Backboard document, so the two systems stay linked.
 
 ## Contracts
 
@@ -51,7 +55,7 @@ authorship on-chain, without needing our permission or routing through us.
 
 ## What proof of authorship does and doesn't mean
 
-Stonekeep proves you had a specific file, hashed, at a specific block time, and that you explicitly attested to being its creator. It is not a copyright registration and not a legal determination of authorship. If two people register similar work, or someone registers something they don't actually own, Stonekeep records what happened on-chain; it doesn't and can't verify real-world ownership before the fact. Self-attestation and the dispute flag exist to create a clear, honest, on-record trail, not to guarantee the outcome.
+Stonekeep proves you had a specific file, hashed, at a specific block time, and that you explicitly attested to being its creator. It is not a copyright registration and not a legal determination of authorship. If two people register similar work, or someone registers something they don't actually own, Stonekeep records what happened on-chain; it doesn't and can't verify real-world ownership before the fact. Self-attestation, the AI similarity check, and the dispute flag exist to create a clear, honest, on-record trail and reduce accidental duplicate claims, not to guarantee the outcome.
 
 ## Security notes
 
@@ -60,6 +64,7 @@ Stonekeep proves you had a specific file, hashed, at a specific block time, and 
 - The `registry.getWork` call inside `transferRights` is a same-contract, view-only external call and carries no reentrancy risk.
 - Neither contract has an admin, owner, or pause function. Once deployed, nobody, including the Stonekeep team, can alter, freeze, or delete a registration.
 - Both contracts are covered by an automated test suite (12 passing tests) exercising the success and failure paths for registration, disputing, and rights transfer.
+- Backboard and Supabase credentials used for the similarity check are kept server-side only (Vercel serverless functions), never exposed to the frontend.
 
 ## Known limitations
 
@@ -68,6 +73,8 @@ Stonekeep proves you had a specific file, hashed, at a specific block time, and 
   A malicious actor could theoretically see the hash and race to register
   it first with higher gas. This is a known tradeoff of the current design,
   not specific to Stonekeep.
+- The AI similarity check compares titles against Stonekeep's own registered works only; it cannot catch theft of a work that has never been registered anywhere, on Stonekeep or off it.
+- "First to register" is not the same as "true original creator." Stonekeep currently has no formal dispute-resolution process beyond the self-flagged dispute marker; a more complete dispute mechanism, allowing a third party to contest a registration with counter-evidence, is a planned future feature.
 
 ## Scripts
 
@@ -104,4 +111,4 @@ npm install
 npm run dev
 \`\`\`
 
-You'll need a `frontend/.env` file with your own `VITE_PINATA_JWT` for IPFS uploads.
+You'll need a `frontend/.env` file with your own `VITE_PINATA_JWT` for IPFS uploads, and server-side environment variables (set in Vercel, not `frontend/.env`) for `BACKBOARD_API_KEY`, `BACKBOARD_ASSISTANT_ID`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY` to enable the AI similarity check.
