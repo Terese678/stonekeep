@@ -13,21 +13,27 @@
 
 // Before writing to chain, we also ask our own /api/check-similarity
 // endpoint (backed by Backboard) whether this title resembles anything
-// already registered. This is informational, not a hard block, since we
-// can't (and shouldn't) prevent someone from registering their own work
-// just because titles happen to look similar - but it's worth surfacing
-// so the creator can make an informed call before paying gas.
+// already registered. If that check itself fails (network issue, server
+// error, etc.) we don't block registration - we record the failure and
+// let the creator proceed, rather than getting stuck in a retry loop.
+
+// Registration is restricted to BOT Chain Mainnet specifically. Testnet
+// activity doesn't count as real usage data, and mixing the two would
+// make any reported numbers unreliable.
 
 import { useState } from 'react'
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
 import { keccak256 } from 'viem'
 import { registryAbi } from '../config/abis'
 import { useContractAddresses } from '../config/getAddresses'
 import { uploadToPinata } from '../utils/pinata'
+import { botChainMainnet } from '../config/wagmi'
 
 function RegisterWork() {
   const { isConnected } = useAccount()
+  const chainId = useChainId()
   const addresses = useContractAddresses()
+  const isOnMainnet = chainId === botChainMainnet.id
 
   const [title, setTitle] = useState('')
   const [file, setFile] = useState(null)
@@ -39,6 +45,11 @@ function RegisterWork() {
   const [checkingSimilarity, setCheckingSimilarity] = useState(false)
   const [similarityResult, setSimilarityResult] = useState(null) // { similar, matchTitle, reason } | null
   const [similarityError, setSimilarityError] = useState(null)
+
+  // Tracks the Pinata upload separately, since it happens before the wallet
+  // popup and would otherwise fail silently or allow a double tap.
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(null)
 
   // writeContract triggers the actual transaction (MetaMask popup, gas, etc.)
   const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract()
@@ -65,9 +76,9 @@ function RegisterWork() {
   }
 
   // Calls our own backend, which asks Backboard whether this title
-  // resembles anything previously registered. Never blocks registration
-  // on its own - just informs the "Register on-chain" button's label
-  // and shows a warning banner if something similar turns up.
+  // resembles anything previously registered. If the check itself fails,
+  // we record that and let the creator proceed rather than blocking them
+  // in a retry loop - informational only, never a hard requirement.
   async function checkSimilarity() {
     setCheckingSimilarity(true)
     setSimilarityError(null)
@@ -87,9 +98,6 @@ function RegisterWork() {
       const data = await res.json()
       setSimilarityResult(data)
     } catch (err) {
-      // If the check itself fails (network issue, Backboard down, etc.),
-      // we don't want that to block registration entirely - just note it
-      // and let the creator proceed without a similarity opinion.
       setSimilarityError(err.message)
     } finally {
       setCheckingSimilarity(false)
@@ -100,24 +108,34 @@ function RegisterWork() {
   // hash + CID + title + attestation on-chain. async because both steps
   // take real time.
   async function registerOnChain() {
-    const ipfsHash = await uploadToPinata(file) // upload first, get real CID
+    setUploadError(null)
+    setIsUploading(true)
 
-    writeContract({
-      address: addresses.REGISTRY_ADDRESS,
-      abi: registryAbi,
-      functionName: 'registerWork',
-      args: [workHash, ipfsHash, title, attestsOwnership],
-    })
+    try {
+      const ipfsHash = await uploadToPinata(file) // upload first, get real CID
+
+      writeContract({
+        address: addresses.REGISTRY_ADDRESS,
+        abi: registryAbi,
+        functionName: 'registerWork',
+        args: [workHash, ipfsHash, title, attestsOwnership],
+      })
+    } catch (err) {
+      // Surface upload failures (bad JWT, network) instead of failing silently
+      setUploadError(err.message || 'Upload to IPFS failed')
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   // The main submit button. First run, this triggers the similarity
-  // check. If nothing similar was found (or the creator already saw the
-  // warning and clicks again), it proceeds to the actual on-chain write.
+  // check. Once it has either a result OR a recorded failure, further
+  // clicks proceed to the actual on-chain write - never stuck retrying.
   async function handleSubmit(e) {
     e.preventDefault()
     if (!workHash || !title || !attestsOwnership) return
 
-    if (!similarityResult) {
+    if (!similarityResult && !similarityError) {
       await checkSimilarity()
       return // wait for the result to render before actually registering
     }
@@ -153,6 +171,22 @@ function RegisterWork() {
     )
   }
 
+  // Registration specifically requires mainnet. Testnet is fine for
+  // Verify/Browse, but a registration made there wouldn't count as real
+  // usage data, so we don't let it happen here at all.
+  if (!isOnMainnet) {
+    return (
+      <div className="bg-panel border border-border-warm rounded-xl p-7 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
+        <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold mb-2">
+          Register work
+        </h2>
+        <p className="text-base text-gray-400 font-body">
+          Registration requires BOT Chain Mainnet. Please switch networks to continue.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-panel border border-border-warm rounded-xl p-7 flex flex-col gap-4 shadow-[0_0_30px_-8px_rgba(201,162,75,0.2)]">
       <h2 className="font-display text-sm uppercase tracking-[0.2em] text-gold">
@@ -167,6 +201,7 @@ function RegisterWork() {
           onChange={(e) => {
             setTitle(e.target.value)
             setSimilarityResult(null) // a changed title means re-check
+            setSimilarityError(null)
           }}
           className="bg-obsidian border border-border-warm rounded-lg px-3 py-2.5 text-base font-body text-white placeholder:text-gray-500"
         />
@@ -226,11 +261,13 @@ function RegisterWork() {
 
         <button
           type="submit"
-          disabled={!file || !title || !attestsOwnership || checkingSimilarity || isPending || isConfirming}
+          disabled={!file || !title || !attestsOwnership || checkingSimilarity || isUploading || isPending || isConfirming}
           className="px-4 py-3 border border-gold text-gold rounded-lg font-display text-base tracking-wide hover:bg-gold hover:text-obsidian transition-all disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gold"
         >
           {checkingSimilarity
             ? 'Checking for similar work...'
+            : isUploading
+            ? 'Uploading to IPFS...'
             : isPending
             ? 'Confirm in wallet...'
             : isConfirming
@@ -239,10 +276,14 @@ function RegisterWork() {
             ? 'Registered ✓'
             : similarityResult?.similar
             ? 'Register anyway'
-            : similarityResult
+            : similarityResult || similarityError
             ? 'Register on-chain'
             : 'Check & register'}
         </button>
+
+        {uploadError && (
+          <p className="text-sm text-red-400 font-body">{uploadError}</p>
+        )}
 
         {writeError && (
           <p className="text-sm text-red-400 font-body">
