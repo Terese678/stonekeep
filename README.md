@@ -6,7 +6,7 @@ On-chain proof of authorship for creators, built on BOT Chain.
 
 Stonekeep lets a creator register their work (a script, a file, anything) permanently on-chain. Once it's registered, that record can never be changed or deleted; it's proof of who made something, and exactly when.
 
-This milestone covers proof of authorship, self-attestation, IPFS storage, ownership transfer, dispute flagging, and public discovery of registered works; all working end-to-end with a live frontend, deployed on both testnet and mainnet.
+This milestone covers proof of authorship, self-attestation, IPFS storage, ownership transfer, dispute flagging, and public discovery of registered works; all working end-to-end with a live frontend, deployed on both testnet and mainnet. An AI similarity check is also built in, but it is currently unavailable while a regression is being investigated (see below).
 
 ## How it works
 
@@ -16,18 +16,32 @@ This milestone covers proof of authorship, self-attestation, IPFS storage, owner
 4. If a registrant made a mistake, they can flag their own registration as disputed. This doesn't remove or hide the record, nothing can, it just adds a visible flag anyone checking the work will see.
 5. Anyone can browse every work ever registered on either network, no wallet required, since it's all public on-chain data.
 
+## Getting started as a creator
+
+1. Install a wallet such as MetaMask.
+2. Get a small amount of BOT for gas. A registration costs about 0.003 BOT.
+3. Open the live app. On a phone, use the link on the page to open it inside MetaMask's browser, which works most smoothly.
+4. Connect your wallet. Stonekeep prompts your wallet to switch to BOT Chain Mainnet. If your wallet can't switch automatically, a card shows the network details with copy buttons.
+5. Enter a title, choose a file, tick the ownership box, and register.
+
 ## Frontend
 
 A React + Vite + wagmi app with real page navigation:
 
-- **Header** — persistent across every page: branding, navigation, and wallet connect/disconnect. On mobile, if no wallet is detected, it shows a direct link into the MetaMask app instead of a dead button.
+- **Header** — persistent across every page: branding, navigation, and wallet connect/disconnect. If a connected wallet is on the wrong network, Stonekeep prompts a switch to BOT Chain Mainnet. Some mobile wallets don't support switching programmatically, so in that case a fallback card shows the exact network details (RPC URL, chain ID, currency symbol, explorer URL) with one-tap copy buttons and manual steps. Mobile visitors who haven't connected also see a link to open Stonekeep inside MetaMask's own browser, where switching works most reliably.
 - **Dashboard** (`/`) — the core actions:
-  - **Register Work** — hash a file, upload to IPFS, attest to ownership, write it on-chain
+  - **Register Work** — hash a file, upload to IPFS, attest to ownership, write it on-chain (mainnet only)
   - **Verify a Work** — re-check a file against the chain, no wallet needed, shows original author, current rights holder, attestation, and dispute status
   - **Transfer Rights** — hand off ownership to a new wallet address
 - **Browse Works** (`/browse`) — a public, searchable feed of every registered work, with a toggle to view either testnet or mainnet activity
 
-Register, Verify, and Transfer Rights automatically detect which network your wallet is connected to (testnet or mainnet) and use the correct contract addresses.
+Verify and Transfer Rights automatically detect which network your wallet is connected to (testnet or mainnet) and use the correct contract addresses.
+
+## AI similarity check (currently unavailable)
+
+Before registering, Stonekeep sends the work's title to a serverless function (`frontend/api/check-similarity.js`). The function uploads it as a small document to a dedicated Backboard assistant, which compares it against previously registered titles, and logs the mapping between on-chain hash and Backboard document in Supabase. If something looks like a likely duplicate, the creator sees a warning before paying gas. It is informational only and never blocks registration.
+
+This worked when first deployed, but it currently fails in production and the app falls back to "Similarity check unavailable, proceeding without it". The cause is still being investigated. Registration works normally either way.
 
 ## Contracts
 
@@ -60,6 +74,7 @@ Stonekeep proves you had a specific file, hashed, at a specific block time, and 
 - The `registry.getWork` call inside `transferRights` is a same-contract, view-only external call and carries no reentrancy risk.
 - Neither contract has an admin, owner, or pause function. Once deployed, nobody, including the Stonekeep team, can alter, freeze, or delete a registration.
 - Both contracts are covered by an automated test suite (12 passing tests) exercising the success and failure paths for registration, disputing, and rights transfer.
+- The Backboard and Supabase credentials used by the similarity check live only in Vercel's server-side environment variables and are never sent to the browser.
 
 ## Known limitations
 
@@ -68,6 +83,9 @@ Stonekeep proves you had a specific file, hashed, at a specific block time, and 
   A malicious actor could theoretically see the hash and race to register
   it first with higher gas. This is a known tradeoff of the current design,
   not specific to Stonekeep.
+- **First to register is not the same as true creator.** If someone registers work they didn't make, the only recourse today is the self-flag dispute marker. A way for a third party to contest a registration with counter-evidence is planned but not built.
+- **The similarity check only compares titles** against works already registered on Stonekeep, so it can't catch theft of work that was never registered here.
+- **Users need BOT for gas.** Each registration costs about 0.004 BOT, and new users must get some before they can register.
 
 ## Scripts
 
@@ -80,28 +98,28 @@ Stonekeep proves you had a specific file, hashed, at a specific block time, and 
 
 Install dependencies, compile the contracts, then deploy:
 
-\`\`\`
+```
 npm install
 npx hardhat compile
 npx hardhat run scripts/deploy.js --network botchainTestnet
 # or
 npx hardhat run scripts/deploy.js --network botchainMainnet
-\`\`\`
+```
 
 Run the test suite:
 
-\`\`\`
+```
 npx hardhat test
-\`\`\`
+```
 
 You'll need a `.env` file with your own `PRIVATE_KEY` and test BOT tokens from the BOT Chain testnet faucet.
 
 To run the frontend:
 
-\`\`\`
+```
 cd frontend
 npm install
 npm run dev
-\`\`\`
+```
 
-You'll need a `frontend/.env` file with your own `VITE_PINATA_JWT` for IPFS uploads.
+You'll need a `frontend/.env` file with your own `VITE_PINATA_JWT` for IPFS uploads. The similarity check also needs `BACKBOARD_API_KEY`, `BACKBOARD_ASSISTANT_ID`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY` set as server-side environment variables in Vercel (not in `frontend/.env`), and `vercel dev` is needed to run the `/api` function locally.
